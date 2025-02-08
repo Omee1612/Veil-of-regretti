@@ -18,12 +18,19 @@ private:
 	bool isFinished;          // Flag to check if animation ended
 	std::string soundPath;    // Path to the sound file
 	bool soundPlaying;        // Is sound currently playing?
+	bool loopSound;           // Should the sound loop indefinitely?
 
 public:
 	// Constructor: Load images automatically
-	Animation(const std::string& folder, const std::string& filePrefix, int totalFrames, bool isRepeatable, int intervalMS, const std::string& soundFile = "")
-		: frameIndex(0), totalFrames(totalFrames), repeatable(isRepeatable), intervalMS(intervalMS), isFinished(false), soundPath(soundFile), soundPlaying(false) {
+	Animation(const std::string& folder, const std::string& filePrefix, int totalFrames, bool isRepeatable, int intervalMS, const std::string& soundFile = "", bool loopSound = false)
+		: frameIndex(0), totalFrames(totalFrames), repeatable(isRepeatable), intervalMS(intervalMS), isFinished(false),
+		soundPath(soundFile), soundPlaying(false), loopSound(loopSound) {
 		loadImages(folder, filePrefix);
+	}
+
+	bool is_finished() const
+	{
+		return isFinished;
 	}
 
 	// Load images from folder
@@ -36,22 +43,28 @@ public:
 			if (imageID == -1) {
 				std::cerr << "Failed to load image: " << framePath << std::endl;
 			}
-			frames.push_back(imageID);
+			frames.emplace_back(imageID);
 		}
 	}
 
 	// Play sound if available
 	void playSound() {
 		if (!soundPath.empty() && !soundPlaying) {
-			PlaySound(soundPath.c_str(), NULL, SND_FILENAME | SND_ASYNC);
+			int flags = SND_FILENAME | SND_ASYNC;
+			if (loopSound) {
+				flags |= SND_LOOP;  // Add loop flag if sound should play indefinitely
+			}
+			PlaySound(soundPath.c_str(), NULL, flags);
 			soundPlaying = true;
 		}
 	}
 
-	// Stop sound
+	// Stop sound if looping is not enabled
 	void stopSound() {
-		PlaySound(NULL, NULL, 0);  // Stop currently playing sound
-		soundPlaying = false;
+		if (!loopSound) {
+			PlaySound(NULL, NULL, 0);  // Stop only if not looping indefinitely
+			soundPlaying = false;
+		}
 	}
 
 	// Update animation frame
@@ -70,7 +83,7 @@ public:
 			else {
 				frameIndex = totalFrames - 1;  // Stop at last frame
 				isFinished = true;
-				stopSound();  // Stop sound when animation finishes
+				stopSound();  // Stop sound when animation finishes (only if not looping)
 			}
 		}
 	}
